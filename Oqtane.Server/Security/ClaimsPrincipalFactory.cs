@@ -34,7 +34,14 @@ namespace Oqtane.Security
                 if (alias != null)
                 {
                     List<UserRole> userroles = _userRoles.GetUserRoles(user.UserId, alias.SiteId).ToList();
+
+                    var securityStampClaim =
+                        identity.Claims.FirstOrDefault(c => c.Type == Options.ClaimsIdentity.SecurityStampClaimType);
+
                     identity = UserSecurity.CreateClaimsIdentity(alias, user, userroles);
+
+                    if (securityStampClaim != null)
+                        identity.AddClaim(new Claim(securityStampClaim.Type, securityStampClaim.Value));
                 }
             }
 

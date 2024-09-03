@@ -109,6 +109,11 @@ namespace Oqtane
                 .AddDefaultTokenProviders()
                 .AddClaimsPrincipalFactory<ClaimsPrincipalFactory<IdentityUser>>(); // role claims
 
+            services.AddScoped<ISecurityStampValidator, Security.SecurityStampValidator>();
+
+            services.Configure<SecurityStampValidatorOptions>(o =>
+                o.ValidationInterval = TimeSpan.FromSeconds(15));
+
             services.ConfigureOqtaneIdentityOptions(Configuration);
 
             services.AddCascadingAuthenticationState();

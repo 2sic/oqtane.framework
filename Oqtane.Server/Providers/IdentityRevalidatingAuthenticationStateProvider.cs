@@ -10,6 +10,7 @@ using System;
 using Oqtane.Infrastructure;
 using Oqtane.Extensions;
 using Oqtane.Managers;
+using System.Security.Claims;
 
 namespace Oqtane.Providers
 {
@@ -30,17 +31,40 @@ namespace Oqtane.Providers
         protected override async Task<bool> ValidateAuthenticationStateAsync(AuthenticationState authState, CancellationToken cancellationToken)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
+
             var tenantManager = scope.ServiceProvider.GetRequiredService<ITenantManager>();
             tenantManager.SetTenant(authState.User.TenantId());
+
             var userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
             var user = userManager.GetUser(authState.User.Identity.Name, authState.User.SiteId());
+
             if (user == null || user.IsDeleted)
             {
                 return false;
             }
-            else
+
+            var identityUserManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+
+            return await ValidateSecurityStampAsync(identityUserManager, authState.User);
+        }
+
+        private async Task<bool> ValidateSecurityStampAsync(UserManager<IdentityUser> userManager, ClaimsPrincipal principal)
+        {
+            var user = await userManager.FindByNameAsync(principal.Username());
+
+            if (user is null)
+            {
+                return false;
+            }
+            else if (!userManager.SupportsUserSecurityStamp)
             {
                 return true;
+            }
+            else
+            {
+                var principalStamp = principal.FindFirstValue(options.Value.ClaimsIdentity.SecurityStampClaimType);
+                var userStamp = await userManager.GetSecurityStampAsync(user);
+                return principalStamp == userStamp;
             }
         }
     }

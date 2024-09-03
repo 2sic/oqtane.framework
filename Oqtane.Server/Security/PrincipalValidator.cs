@@ -9,12 +9,14 @@ using System.Collections.Generic;
 using Oqtane.Extensions;
 using Oqtane.Shared;
 using System.IO;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 
 namespace Oqtane.Security
 {
     public static class PrincipalValidator
     {
-        public static Task ValidateAsync(CookieValidatePrincipalContext context)
+        public static async Task ValidateAsync(CookieValidatePrincipalContext context)
         {
             if (context != null && context.Principal.Identity.IsAuthenticated && context.Principal.Identity.Name != null)
             {
@@ -44,7 +46,16 @@ namespace Oqtane.Security
                                 List<UserRole> userroles = userRoleRepository.GetUserRoles(user.UserId, alias.SiteId).ToList();
                                 if (userroles.Any())
                                 {
+                                    var optionsAccessor = context.HttpContext.RequestServices.GetService(typeof(IOptions<IdentityOptions>)) as IOptions<IdentityOptions>;
+
+                                    var securityStampClaim =
+                                        claims.FirstOrDefault(c => c.Type == optionsAccessor.Value.ClaimsIdentity.SecurityStampClaimType);
+
                                     var identity = UserSecurity.CreateClaimsIdentity(alias, user, userroles);
+
+                                    if (securityStampClaim != null)
+                                        identity.AddClaim(new Claim(securityStampClaim.Type, securityStampClaim.Value));
+
                                     context.ReplacePrincipal(new ClaimsPrincipal(identity));
                                     context.ShouldRenew = true;
                                     Log(_logger, alias, "Permissions Updated For User {Username} Accessing {Url}", context.Principal.Identity.Name, path);
@@ -69,8 +80,11 @@ namespace Oqtane.Security
                         // user is signed in but tenant cannot be determined
                     }
                 }
+
+                // check security stamp
+                if (context.HttpContext.RequestServices.GetService(typeof(ISecurityStampValidator)) is ISecurityStampValidator securityStampValidator)
+                    await securityStampValidator.ValidateAsync(context);
             }
-            return Task.CompletedTask;
         }
 
         private static void Log (ILogManager logger, Alias alias, string message, string username, string path)

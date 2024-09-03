@@ -232,12 +232,18 @@ namespace Oqtane.Managers
                     {
                         identityuser.PasswordHash = _identityUserManager.PasswordHasher.HashPassword(identityuser, user.Password);
                         await _identityUserManager.UpdateAsync(identityuser);
+                        await _identityUserManager.UpdateSecurityStampAsync(identityuser);
                     }
                     else
                     {
                         _logger.Log(user.SiteId, LogLevel.Error, this, LogFunction.Update, "Unable To Update User {Username}. Password Does Not Meet Complexity Requirements.", user.Username);
                         return null;
                     }
+                }
+
+                if (user.IsDeleted)
+                {
+                    await _identityUserManager.UpdateSecurityStampAsync(identityuser);
                 }
 
                 if (user.Email != identityuser.Email)
