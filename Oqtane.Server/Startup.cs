@@ -112,7 +112,7 @@ namespace Oqtane
             services.AddScoped<ISecurityStampValidator, Security.SecurityStampValidator>();
 
             services.Configure<SecurityStampValidatorOptions>(o =>
-                o.ValidationInterval = TimeSpan.FromSeconds(15));
+                o.ValidationInterval = TimeSpan.FromMinutes(30));
 
             services.ConfigureOqtaneIdentityOptions(Configuration);
 
